@@ -1,0 +1,13 @@
+# Keil uVision 忽略规则
+*.uvoptx
+*.uvguix.*
+*.scvd
+*.iex
+*.htm
+*.map
+*.obj
+*.lst
+
+# 忽略编译生成的文件夹 (通常是这两个)
+Objects/
+Listings/
