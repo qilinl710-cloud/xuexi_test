@@ -197,13 +197,73 @@ hd：高密度产品，FLASH 大于 128
 8.库函数的关系：
 <img width="665" height="802" alt="Image" src="https://github.com/user-attachments/assets/97b38aad-bdee-4bad-ae52-c0f2e5812f05" />
 
+2026年1月4日与1月3日
+
 第五章：
 
 1.存储器映射图：
 
 <img width="751" height="574" alt="Image" src="https://github.com/user-attachments/assets/5f4c8252-ce8f-4e8b-b61f-85a9efae1b4f" />
-1.外设基地址：Cortex-M3 核分配给片 上外设的从 0x4000 0000 至 0x5FFF FFFF 的 512MB 寻址空间中 的第一个地 址，我们把 0x4000 0000 称为外设基地址。
 
-2.总线基地址：
+寄存器的最终地址(绝对地址)=外设基地址+总线基地址+寄存器组基地址
 
-3.寄存器组基地址：
+外设基地址：
+-   每个外设(比如GPIOA、USART、TIME)所属的总线占据一小段的连续寻址范围，这段范围起始地址叫做外设基地址 。
+- 这个就是某个具体外设在内存里的起点，所有的外设寄存器都在这一区域内按偏移排列。
+-  例如：首先看到 PERIPH_BASE 这个宏，宏展开为 0x4000 0000,并把它强制
+转换为 uint32_t 的 32 位类型数据，这是因为地 STM32 的地址是 32 位的，Cortex-M3 核分配给片 上外设的从 0x4000 0000 至 0x5FFF FFFF 的 512MB 寻址空间中 的第一个地 址，我们把 0x4000 0000 称为外设基地址。
+
+
+总线基地址：
+- 在MCU中，片上外设挂载在不同总线上(比如AHB、APB1、APB2)。
+- 每条总线在整个存储器映射中有一段连续的地址，这段区域的第一个地址叫“总线基地址”，也是这条总线上第一个外设的起始地址。
+- 例如：接下来是宏 APB2PERIPH_BASE，宏展开为 PERIPH_BASE（外设基地
+址）加上偏移地址 0x1 0000，即指向的地址为 0x4001 0000。STM32 不同的外设是挂载在不同的总
+线上的，见图 5-8。有 AHB 总线、APB2 总线、APB1 总线，挂载在这些总线上
+的外设有特定的地址范围。
+
+
+寄存器组基地址：
+- 针对“单个外设”（如GPIOA、USART1），这个外设控制/状态寄存器是一整组连续地址。这组寄存器最前面的那个地址，就是这个外设的寄存器组地址，也被称为“这个外设的基地址”。
+- 最后到了宏 GPIOC_BASE，宏展开为 APB2PERIPH_BASE (APB2 总线
+外设的基地址)加上相对 APB2 总线基地址的偏移量 0x1000 得到了 GPIOC 端
+口的寄存器组的基地址。
+
+
+2.C语言关键字volatile：
+volatile：告诉编译器“这个变量随时可能变，每次读写都算有副作用”。
+
+作用：禁止对它的读写做省略、合并等优化，保证每次都真正访问内存/寄存器。
+
+典型用途：外设寄存器、中断/多线程共享标志、延时空循环。
+
+不能做的事：不能保证原子性，不能解决所有并发问题。
+3.stm32对于库函数的封装：
+在 stm32f10x.h 文件中，有以下代码：
+
+```c
+代码一
+#define GPIOA               ((GPIO_TypeDef *) GPIOA_BASE)
+#define GPIOB               ((GPIO_TypeDef *) GPIOB_BASE)
+#define GPIOC               ((GPIO_TypeDef *) GPIOC_BASE)
+#define GPIOD               ((GPIO_TypeDef *) GPIOD_BASE)
+#define GPIOE               ((GPIO_TypeDef *) GPIOE_BASE)
+#define GPIOF               ((GPIO_TypeDef *) GPIOF_BASE)
+```
+
+有了这些宏，我们就可以定位到具体的寄存器地址，在这里发现了一个陌 生的类型 GPIO_TypeDef ，追踪它的定义，可以在 stm32f10x.h 文件中找 到如下代码：图1
+
+<img width="721" height="359" alt="Image" src="https://github.com/user-attachments/assets/38b5538c-6d60-4ad8-83a1-aad5d340dc34" />
+
+其中 __IO 也是一个 ST 库定义的宏，宏定义如下：图二
+<img width="920" height="470" alt="Image" src="https://github.com/user-attachments/assets/f9340f53-94a7-4d36-939d-f57e8b08e431" />
+
+只要匹配结构体 的首地址，就可以确定各寄存器的具体地址了。图三
+<img width="617" height="621" alt="Image" src="https://github.com/user-attachments/assets/46eab5b8-9064-464e-ba38-63b4b12017de" />
+分析代码一：GPIOA_BASE 在上一小节已解析，是一个代表 GPIOA 组寄存器的基地址。(GPIO_TypeDef *) 在这里的作用则是把 GPIOA_BASE 地址转换为GPIO_TypeDef 结构体指针类型。
+
+4.STM32的时钟系统
+
+为了实现低功耗，STM32设计了一套功能完善的但却非常复杂的时钟系统。普通的MCU，在配置好GPIO的寄存器后就可以使用，，但是STM32，还需开启外设时钟。
+
+总结：今天晚上修改了隐藏文件，因为昨天晚上在.gitignore隐藏一些不必要的文件，没有自习观察，把所有的文件全部隐藏进去了。还有寄存器的地址是如何来的，stm32有外设四个总线，APB1,2,AHB1,2。了解stm32的时钟系统的一小部分。
