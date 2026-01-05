@@ -4,6 +4,11 @@
             "path": "."
         }
     ],
-    "settings": {},
+    "settings": {
+        "files.associations": {
+            "*.c": "c",
+            "stm32f10x.h": "c"
+        }
+    },
     "extensions": {}
 }
